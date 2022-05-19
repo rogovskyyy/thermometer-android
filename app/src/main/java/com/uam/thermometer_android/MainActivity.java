@@ -2,10 +2,15 @@ package com.uam.thermometer_android;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.Image;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -15,10 +20,10 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
 
-    ImageView iv;
-    Bitmap bitmap;
-    Canvas canvas;
-    Paint paint;
+    public ImageView iv;
+    public Bitmap bitmap;
+    public Canvas canvas;
+    public Paint paint;
 
     int samplingfrequency = 12000;
     int blockSize = 1024;
@@ -26,6 +31,12 @@ public class MainActivity extends AppCompatActivity {
     double[] x;
     double[] y;
     double[] ampl;
+
+    int frequency = 100;
+
+    int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
+    int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+
 
     boolean loop = false;
 
@@ -71,29 +82,69 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void drawView() {
-        for(int i = 0; i < blockSize / 2; i++) {
-            //canvas.drawLine(i, BASE, i += 2, BASE - ((float) Math.sin(i) * 100), paint);
-            Random rnd = new Random();
-            int x = rnd.nextInt(100);
-            canvas.drawCircle((float) i + 2, BASE - (float) x, (float) 2.0, paint);
-        }
-        iv.invalidate();
-    }
-
     private void startThread() {
-        Thread t = new Thread() {
+        Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
                 while(true) {
                     while (loop) {
                         drawView();
-                        Log.d("APP", "Dzialam w petli mordo");
+                        Log.d("APP", "Dzialam w petli");
+                        try { Thread.sleep(100); } catch(Throwable e) { }
                     }
                 }
             }
-        };
+        });
         t.start();
+    }
+
+    public void drawView() {
+
+        canvas.drawColor(Color.BLACK);
+        paint.setColor(Color.YELLOW);
+        iv.setImageBitmap(bitmap);
+
+        double t;
+        double c;
+
+        for(int i = 0; i < blockSize / 2; i++) {
+
+            t = (double) i / (double) samplingfrequency;
+            c = Math.sin(2 * Math.PI * frequency * t) * 50;
+
+            canvas.drawCircle((float) i + 2, (float) ((double) BASE - (double) 50.0  + (double) c), (float) 2.0, paint);
+
+        }
+
+        iv.invalidate();
+        frequency += 20;
+    }
+
+    protected void readAudio() {
+
+        short[] audioBuffer  = new short[blockSize];
+
+        int bufferSize = AudioRecord.getMinBufferSize(samplingfrequency, channelConfiguration, audioEncoding);
+
+        AudioRecord audioRecord = new AudioRecord (
+                MediaRecorder.AudioSource.MIC,
+                samplingfrequency,
+                channelConfiguration,
+                audioEncoding,
+                bufferSize
+        );
+
+        audioRecord.startRecording();
+
+        int bufferReadResult = audioRecord.read(audioBuffer, 0, blockSize);
+
+        for(int i = 0; i < blockSize && i < bufferReadResult; i++) {
+            x[i] = (double) audioBuffer[i] / 32768.0;
+        }
+
+        audioRecord.stop();
+
+
     }
 
 }
