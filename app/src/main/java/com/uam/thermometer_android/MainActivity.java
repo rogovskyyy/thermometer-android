@@ -28,23 +28,24 @@ public class MainActivity extends AppCompatActivity {
     public Bitmap bitmap;
     public Canvas canvas;
     public Paint paint;
+    public Paint text;
     public FFT fft;
 
     int samplingfrequency = 12000;
-    int blockSize = 1024;
+    int blockSize = 8192;
 
     double[] x;
     double[] y;
     double[] ampl;
 
-    int frequency = 100;
+    int frequency = 2048;
 
     int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
     int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
 
     boolean loop = false;
 
-    private final static float BASE = 300;
+    private final static float BASE = 370;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,26 +67,30 @@ public class MainActivity extends AppCompatActivity {
         paint = new Paint();
         paint.setColor(Color.YELLOW);
 
+        text = new Paint();
+        text.setColor(Color.BLACK);
+        text.setStyle(Paint.Style.FILL);
+        canvas.drawPaint(text);
+
+        text.setColor(Color.YELLOW);
+        text.setTextSize(24);
+        text.setTextScaleX((float) 7.0);
+
         iv.setImageBitmap(bitmap);
 
-        fft = new FFT(1024);
+        fft = new FFT(blockSize);
 
         Button btn1 = (Button) findViewById(R.id.btn1);
         btn1.setOnClickListener(view -> {
-            System.out.println("Zmieniam na true");
             loop = true;
         });
 
         Button btn2 = (Button) findViewById(R.id.btn2);
         btn2.setOnClickListener(view -> {
-            System.out.println("Zmieniam na false");
             loop = false;
         });
 
-        Log.d("APP", "Starting thread");
         this.startThread();
-        Log.d("APP", "Started thread");
-
     }
 
     private void startThread() {
@@ -112,6 +117,9 @@ public class MainActivity extends AppCompatActivity {
         //    Log.d("MIKROFON -> ", x[i] + "");
         //}
 
+        int pick = 0;
+        double max = 0.0;
+
         canvas.drawColor(Color.BLACK);
         paint.setColor(Color.YELLOW);
         iv.setImageBitmap(bitmap);
@@ -119,7 +127,18 @@ public class MainActivity extends AppCompatActivity {
         //double t;
         //double c;
 
-        fft.fft(x, y);
+        fft.calculate(x, y);
+
+        for(int i = 0; i < blockSize / 2; i++) {
+
+            ampl[i] = x[i] * x[i] + y[i] * y[i];
+            if (i > 0) {
+                if(ampl[i] > max) {
+                    max = ampl[i];
+                    pick = i;
+                }
+            }
+        }
 
         for (int i = 0; i < blockSize / 2; i++) {
 
@@ -127,8 +146,31 @@ public class MainActivity extends AppCompatActivity {
             //c = Math.sin(2 * Math.PI * frequency * t) * 50;
 
             //canvas.drawCircle((float) i + 2, (float) ((double) BASE - (double) 50.0  + (double) c), (float) 2.0, paint);
-            canvas.drawCircle((float) i, (float) ((double) BASE - (double) 10.0  + (double) +  x[i]), (float) 2.0, paint);
+            //canvas.drawCircle((float) i, (float) ((double) BASE - (double) 10.0  + (double) +  x[i]), (float) 2.0, paint);
+
+            canvas.drawLine(
+                    (float) i,
+                    (float) ((double) BASE - (double) 10.0),
+                    (float) i,
+                    (float) ((double) BASE - (double) 10.0  - (double)  ampl[i]), paint);
         }
+
+
+        int freq = (pick * samplingfrequency) / blockSize;
+
+        // Michal M.
+        // double a = 0.013;
+        // double b = -14.4;
+        // double temp = Math.round((a * freq + b) * 100.0) / 100.0;
+
+        // Bartek. R
+        double a = 0.013;
+        double b = -14.4;
+        double temp = Math.round((a * freq + b) * 100.0) / 100.0;
+
+        canvas.drawText("freq: " + freq, (float) 250.0, (float) 50.0, text);
+        canvas.drawText("pick: " + pick, (float) 250.0, (float) 75.0, text);
+        canvas.drawText("temp: " + temp, (float) 250.0, (float) 100.0, text);
 
         iv.invalidate();
         //frequency += 20;
@@ -149,6 +191,7 @@ public class MainActivity extends AppCompatActivity {
             // for ActivityCompat#requestPermissions for more details.
             return;
         }
+
         AudioRecord audioRecord = new AudioRecord(
                 MediaRecorder.AudioSource.MIC,
                 samplingfrequency,
@@ -164,6 +207,11 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0; i < blockSize && i < bufferReadResult; i++) {
             x[i] = (double) audioBuffer[i] / 32768.0;
         }
+
+        for(int i = 0; i < blockSize && i < bufferReadResult; i++) {
+            y[i] = 0;
+        }
+
         audioRecord.stop();
     }
 }

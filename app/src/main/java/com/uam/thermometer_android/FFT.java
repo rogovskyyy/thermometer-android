@@ -26,7 +26,7 @@ public class FFT {
         }
     }
 
-    public void fft(double[] x, double[] y) {
+    public void calculate(double[] x, double[] y) {
         int i, j, k, n1, n2, a;
         double c, s, t1, t2;
 
