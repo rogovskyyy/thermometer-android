@@ -164,8 +164,8 @@ public class MainActivity extends AppCompatActivity {
         // double temp = Math.round((a * freq + b) * 100.0) / 100.0;
 
         // Bartek. R
-        double a = 0.013;
-        double b = -14.4;
+        double a = 0.014;
+        double b = -16.86;
         double temp = Math.round((a * freq + b) * 100.0) / 100.0;
 
         canvas.drawText("freq: " + freq, (float) 250.0, (float) 50.0, text);
